@@ -1336,7 +1336,7 @@ process IndexBamFile {
 
     script:
     """
-    samtools sort ${idSample}_mapped.bam -o ${idSample}.bam -n
+    samtools sort --threads ${task.cpus} -m 2G -n ${idSample}_mapped.bam > ${idSample}.bam
     samtools index ${idSample}.bam
     """
 }
