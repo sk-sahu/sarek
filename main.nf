@@ -1194,7 +1194,7 @@ process MapReads {
     ${convertToFastq}
     ${aligner} mem -K 100000000 -R \"${readGroup}\" ${extra} -t ${task.cpus} -M ${fasta} \
     ${input} > ${idSample}_${idRun}_nonsort.bam
-    samtools sort --threads ${task.cpus} -m 2G -n ${idSample}_${idRun}_nonsort.bam > ${idSample}_${idRun}.bam
+    samtools sort --threads ${task.cpus} -m 2G ${idSample}_${idRun}_nonsort.bam > ${idSample}_${idRun}.bam
     """
 }
 
@@ -1336,7 +1336,6 @@ process IndexBamFile {
 
     script:
     """
-    samtools sort --threads ${task.cpus} -m 2G -n ${idSample}_mapped.bam > ${idSample}.bam
     samtools index ${idSample}.bam
     """
 }
