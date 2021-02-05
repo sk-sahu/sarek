@@ -1326,7 +1326,7 @@ process IndexBamFile {
         }
 
     input:
-        set idPatient, idSample, file("${idSample}_mapped.bam") from bam_mapped_merged_to_index
+        set idPatient, idSample, file("${idSample}.bam") from bam_mapped_merged_to_index
 
     output:
         set idPatient, idSample, file("${idSample}.bam"), file("${idSample}.bam.bai") into bam_mapped_merged_indexed
