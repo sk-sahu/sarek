@@ -893,13 +893,42 @@ if (params.split_fastq){
 
 inputPairReads = inputPairReads.dump(tag:'INPUT')
 
-(inputPairReads, inputPairReadsTrimGalore, inputPairReadsFastQC, inputPairReadsUMI) = inputPairReads.into(4)
+(inputSRA, inputPairReads, inputPairReadsTrimGalore, inputPairReadsFastQC, inputPairReadsUMI) = inputPairReads.into(4)
 
 if (params.umi) inputPairReads.close()
 else inputPairReadsUMI.close()
 
 if (params.trim_fastq) inputPairReads.close()
 else inputPairReadsTrimGalore.close()
+
+// SRA download 
+
+if(params.sra){
+    Channel
+        .fromPath(params.key_file)
+        .into { ch_key_file}
+
+    process sra {
+      tag "${accession_id}"
+      echo true
+      container 'lifebitai/download_reads:latest'
+
+      input:
+      each file(key_file) from ch_key_file
+      set idPatient, idSample, idRun, val(accession_id) from inputSRA
+
+      output:
+      set idPatient, idSample, idRun, file("${accession_id}_1.fastq.gz"), file("${accession_id}_2.fastq.gz") from outSRA
+
+      script:
+      def ngc_cmd_with_key_file = params.key_file ? "--ngc ${key_file}" : ''
+      """
+      prefetch $ngc_cmd_with_key_file $accession_id --progress -o $accession_id
+      fasterq-dump $ngc_cmd_with_key_file $accession_id --threads ${task.cpus} --split-3
+      pigz *.fastq
+      """
+  }
+}
 
 // STEP 0.5: QC ON READS
 
@@ -1148,6 +1177,9 @@ if (params.umi) {
     inputPairReads = inputPairReads.dump(tag:'INPUT before mapping')
     if (params.sentieon) input_pair_reads_sentieon = consensus_bam_ch
     else inputPairReads = consensus_bam_ch
+}
+else if (params.sra) {
+    inputPairReads = outSRA
 }
 else {
     if (params.trim_fastq) inputPairReads = outputPairReadsTrimGalore
@@ -4278,6 +4310,7 @@ def extractFastq(tsvFile) {
                 }
             }
             else if (hasExtension(file1, "bam")) checkNumberOfItem(row, 6)
+            else if (params.sra) checkNumberOfItem(row, 6)
             else "No recognisable extention for input file: ${file1}"
 
             [idPatient, gender, status, idSample, idRun, file1, file2]
