@@ -859,13 +859,50 @@ if (params.no_intervals && step != 'annotate') {
 
 inputBam = Channel.create()
 inputPairReads = Channel.create()
+inputSRA = Channel.create()
 
 if (step in ['preparerecalibration', 'recalibrate', 'variantcalling', 'controlfreec', 'annotate']) {
+    inputBam.close()
+    inputPairReads.close()
+} else if (params.sra){
+    inputSample.choice(inputSRA) {hasExtension(it[3], "bam") ? 1 : 0}
     inputBam.close()
     inputPairReads.close()
 } else inputSample.choice(inputPairReads, inputBam) {hasExtension(it[3], "bam") ? 1 : 0}
 
 (inputBam, inputBamFastQC) = inputBam.into(2)
+
+// SRA download 
+
+if(params.sra){
+    ch_key_file = ''
+    if (params.key_file){
+        Channel
+        .fromPath(params.key_file)
+        .into { ch_key_file}
+    }
+    
+    process sra {
+      tag "${accession_id}"
+      echo true
+      container 'lifebitai/download_reads:latest'
+
+      input:
+      each file(key_file) from ch_key_file
+      set idPatient, idSample, idRun, val(accession_id) from inputSRA
+
+      output:
+      set idPatient, idSample, idRun, file("${accession_id}_1.fastq.gz"), file("${accession_id}_2.fastq.gz") into inputPairReads
+
+      script:
+      def ngc_cmd_with_key_file = params.key_file ? "--ngc ${key_file}" : ''
+      """
+      prefetch $ngc_cmd_with_key_file $accession_id --progress -o $accession_id
+      fasterq-dump $ngc_cmd_with_key_file $accession_id --threads ${task.cpus} --split-3
+      pigz *.fastq
+      """
+  }
+}
 
 // Removing inputFile2 which is null in case of uBAM
 inputBamFastQC = inputBamFastQC.map {
@@ -893,42 +930,13 @@ if (params.split_fastq){
 
 inputPairReads = inputPairReads.dump(tag:'INPUT')
 
-(inputSRA, inputPairReads, inputPairReadsTrimGalore, inputPairReadsFastQC, inputPairReadsUMI) = inputPairReads.into(4)
+(inputPairReads, inputPairReadsTrimGalore, inputPairReadsFastQC, inputPairReadsUMI) = inputPairReads.into(4)
 
 if (params.umi) inputPairReads.close()
 else inputPairReadsUMI.close()
 
 if (params.trim_fastq) inputPairReads.close()
 else inputPairReadsTrimGalore.close()
-
-// SRA download 
-
-if(params.sra){
-    Channel
-        .fromPath(params.key_file)
-        .into { ch_key_file}
-
-    process sra {
-      tag "${accession_id}"
-      echo true
-      container 'lifebitai/download_reads:latest'
-
-      input:
-      each file(key_file) from ch_key_file
-      set idPatient, idSample, idRun, val(accession_id) from inputSRA
-
-      output:
-      set idPatient, idSample, idRun, file("${accession_id}_1.fastq.gz"), file("${accession_id}_2.fastq.gz") from outSRA
-
-      script:
-      def ngc_cmd_with_key_file = params.key_file ? "--ngc ${key_file}" : ''
-      """
-      prefetch $ngc_cmd_with_key_file $accession_id --progress -o $accession_id
-      fasterq-dump $ngc_cmd_with_key_file $accession_id --threads ${task.cpus} --split-3
-      pigz *.fastq
-      """
-  }
-}
 
 // STEP 0.5: QC ON READS
 
@@ -1177,9 +1185,6 @@ if (params.umi) {
     inputPairReads = inputPairReads.dump(tag:'INPUT before mapping')
     if (params.sentieon) input_pair_reads_sentieon = consensus_bam_ch
     else inputPairReads = consensus_bam_ch
-}
-else if (params.sra) {
-    inputPairReads = outSRA
 }
 else {
     if (params.trim_fastq) inputPairReads = outputPairReadsTrimGalore
@@ -4299,7 +4304,7 @@ def extractFastq(tsvFile) {
             def status     = returnStatus(row[2].toInteger())
             def idSample   = row[3]
             def idRun      = row[4]
-            def file1      = returnFile(row[5])
+            def file1      = row[5]
             def file2      = "null"
             if (hasExtension(file1, "fastq.gz") || hasExtension(file1, "fq.gz") || hasExtension(file1, "fastq") || hasExtension(file1, "fq")) {
                 checkNumberOfItem(row, 7)
