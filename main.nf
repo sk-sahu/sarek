@@ -867,7 +867,6 @@ if (step in ['preparerecalibration', 'recalibrate', 'variantcalling', 'controlfr
 } else if (params.sra){
     inputSample.choice(inputSRA) {hasExtension(it[3], "bam") ? 1 : 0}
     inputBam.close()
-    inputPairReads.close()
 } else inputSample.choice(inputPairReads, inputBam) {hasExtension(it[3], "bam") ? 1 : 0}
 
 (inputBam, inputBamFastQC) = inputBam.into(2)
@@ -884,12 +883,11 @@ if(params.sra){
     
     process sra {
       tag "${accession_id}"
-      echo true
       container 'lifebitai/download_reads:latest'
 
       input:
       each file(key_file) from ch_key_file
-      set idPatient, idSample, idRun, val(accession_id) from inputSRA
+      set idPatient, idSample, idRun, val(accession_id), val(extra) from inputSRA
 
       output:
       set idPatient, idSample, idRun, file("${accession_id}_1.fastq.gz"), file("${accession_id}_2.fastq.gz") into inputPairReads
