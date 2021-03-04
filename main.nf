@@ -902,6 +902,17 @@ if(params.sra){
   }
 }
 
+
+inputPairReads = inputPairReads.dump(tag:'INPUT')
+
+(inputPairReads, inputPairReadsTrimGalore, inputPairReadsFastQC, inputPairReadsUMI) = inputPairReads.into(4)
+
+if (params.umi) inputPairReads.close()
+else inputPairReadsUMI.close()
+
+if (params.trim_fastq) inputPairReads.close()
+else inputPairReadsTrimGalore.close()
+
 // Removing inputFile2 which is null in case of uBAM
 inputBamFastQC = inputBamFastQC.map {
     idPatient, idSample, idRun, inputFile1, inputFile2 ->
@@ -925,16 +936,6 @@ if (params.split_fastq){
             newReads2 = file("${idSample}_${newIdRun}_R2.fastq.gz")
             [idPatient, idSample, newIdRun, reads1, reads2]}
 }
-
-inputPairReads = inputPairReads.dump(tag:'INPUT')
-
-(inputPairReads, inputPairReadsTrimGalore, inputPairReadsFastQC, inputPairReadsUMI) = inputPairReads.into(4)
-
-if (params.umi) inputPairReads.close()
-else inputPairReadsUMI.close()
-
-if (params.trim_fastq) inputPairReads.close()
-else inputPairReadsTrimGalore.close()
 
 // STEP 0.5: QC ON READS
 
