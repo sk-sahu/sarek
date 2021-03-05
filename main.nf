@@ -4302,7 +4302,7 @@ def extractFastq(tsvFile) {
             def status     = returnStatus(row[2].toInteger())
             def idSample   = row[3]
             def idRun      = row[4]
-            def file1      = row[5]
+            def file1      = params.sra ? row[5] : returnFile(row[5])
             def file2      = "null"
             if (hasExtension(file1, "fastq.gz") || hasExtension(file1, "fq.gz") || hasExtension(file1, "fastq") || hasExtension(file1, "fq")) {
                 checkNumberOfItem(row, 7)
