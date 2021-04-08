@@ -86,12 +86,12 @@ then
 	    done
 	  done
 	) | bgzip -@${cpus} > rawcalls.vcf.gz
-	tabix rawcalls.vcf.gz
+	tabix -f -p vcf rawcalls.vcf.gz
 else
         VCF=$(ls no_intervals*.vcf)
         cp $VCF rawcalls.vcf 
         bgzip -@${cpus} rawcalls.vcf
-        tabix rawcalls.vcf.gz
+        tabix -f -p vcf rawcalls.vcf.gz
 fi
 
 set +u
@@ -100,7 +100,7 @@ set +u
 if [ ! -z ${targetBED+x} ]; then
 	echo "Target is $targetBED - Selecting subset..."
 	bcftools isec --targets-file ${targetBED} rawcalls.vcf.gz | bgzip -@${cpus} > ${outputFile}.gz
-	tabix ${outputFile}.gz
+	tabix -f -p vcf ${outputFile}.gz
 else
 	# Rename the raw calls as WGS results
 	for f in rawcalls*; do mv -v $f ${outputFile}${f#rawcalls.vcf}; done
