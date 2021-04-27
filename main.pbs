@@ -24,8 +24,5 @@ curl -fsSL get.nextflow.io | bash
 --sra true \
 --tools FreeBayes \
 --genome GRCh38 \
---max_cpus 16 \
---max_memory '104.GB' \
---max_time '48.h' \
 --key_file /projects/lau-lab/ataylor/igct/IGCT.Apr7key.ngc \
 --intervals /projects/lau-lab/ataylor/igct/MHC.AllGeneRegions.Unique.Sorted.3Column.bed
