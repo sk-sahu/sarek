@@ -2,7 +2,7 @@
 #SBATCH -o splicing.%j.out
 #SBATCH -e splicing.%j.err
 #SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=$USER@jax.org
+#SBATCH --mail-user=$aaron.taylor@jax.org
 #SBATCH --mem=20000
 #SBATCH --cpus-per-task=4
 #SBATCH -p compute
@@ -16,7 +16,16 @@ module load singularity
 
 curl -fsSL get.nextflow.io | bash
 
-./nextflow run /projects/path-to/main.nf \
-  --outdir ${SLURM_SUBMIT_DIR} \
-  -profile sumner -resume \
-  -with-trace trace.txt
+./nextflow run /projects/lau-lab/ataylor/igct/sarek/main.nf \
+--outdir ${SLURM_SUBMIT_DIR} \
+-profile sumner -resume \
+-with-trace trace.txt \
+--input /projects/lau-lab/ataylor/igct/sra_reads_sarekAllSamples.tsv \
+--sra true \
+--tools FreeBayes \
+--genome GRCh38 \
+--max_cpus 16 \
+--max_memory '104.GB' \
+--max_time '48.h' \
+--key_file /projects/lau-lab/ataylor/igct/IGCT.Apr7key.ngc \
+--intervals /projects/lau-lab/ataylor/igct/MHC.AllGeneRegions.Unique.Sorted.3Column.bed
