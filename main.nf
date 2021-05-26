@@ -849,8 +849,7 @@ bedIntervals = bedIntervals
 bedIntervals = bedIntervals.dump(tag:'bedintervals')
 
 if (params.no_intervals && step != 'annotate') {
-    file("${params.outdir}/no_intervals.bed").text = "no_intervals\n"
-    bedIntervals = Channel.from(file("${params.outdir}/no_intervals.bed"))
+    bedIntervals = Channel.from(file("${projectDir}/assets/no_intervals.bed"))
 }
 
 (intBaseRecalibrator, intApplyBQSR, intHaplotypeCaller, intFreebayesSingle, intMpileup, bedIntervals) = bedIntervals.into(6)
@@ -859,13 +858,48 @@ if (params.no_intervals && step != 'annotate') {
 
 inputBam = Channel.create()
 inputPairReads = Channel.create()
+inputSRA = Channel.create()
 
 if (step in ['preparerecalibration', 'recalibrate', 'variantcalling', 'controlfreec', 'annotate']) {
     inputBam.close()
     inputPairReads.close()
+} else if (params.sra){
+    inputSample.choice(inputSRA) {hasExtension(it[3], "bam") ? 1 : 0}
+    inputBam.close()
 } else inputSample.choice(inputPairReads, inputBam) {hasExtension(it[3], "bam") ? 1 : 0}
 
 (inputBam, inputBamFastQC) = inputBam.into(2)
+
+// SRA download 
+
+if(params.sra){
+    ch_key_file = ''
+    if (params.key_file){
+        Channel
+        .fromPath(params.key_file)
+        .into { ch_key_file}
+    }
+    
+    process sra {
+      tag "${accession_id}"
+      container 'lifebitai/download_reads:latest'
+
+      input:
+      each file(key_file) from ch_key_file
+      set idPatient, idSample, idRun, val(accession_id), val(extra) from inputSRA
+
+      output:
+      set idPatient, idSample, idRun, file("${accession_id}_1.fastq.gz"), file("${accession_id}_2.fastq.gz") into inputPairReads
+
+      script:
+      def ngc_cmd_with_key_file = params.key_file ? "--ngc ${key_file}" : ''
+      """
+      prefetch $ngc_cmd_with_key_file $accession_id --progress -o $accession_id
+      fasterq-dump $ngc_cmd_with_key_file $accession_id --threads ${task.cpus} --split-3
+      pigz *.fastq
+      """
+  }
+}
 
 // Removing inputFile2 which is null in case of uBAM
 inputBamFastQC = inputBamFastQC.map {
@@ -4267,7 +4301,7 @@ def extractFastq(tsvFile) {
             def status     = returnStatus(row[2].toInteger())
             def idSample   = row[3]
             def idRun      = row[4]
-            def file1      = returnFile(row[5])
+            def file1      = params.sra ? row[5] : returnFile(row[5])
             def file2      = "null"
             if (hasExtension(file1, "fastq.gz") || hasExtension(file1, "fq.gz") || hasExtension(file1, "fastq") || hasExtension(file1, "fq")) {
                 checkNumberOfItem(row, 7)
@@ -4278,6 +4312,7 @@ def extractFastq(tsvFile) {
                 }
             }
             else if (hasExtension(file1, "bam")) checkNumberOfItem(row, 6)
+            else if (params.sra) checkNumberOfItem(row, 6)
             else "No recognisable extention for input file: ${file1}"
 
             [idPatient, gender, status, idSample, idRun, file1, file2]
