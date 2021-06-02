@@ -1,0 +1,32 @@
+#!/bin/bash
+#SBATCH -o runSarek.%j.out
+#SBATCH -e runSarek.%j.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=$aaron.taylor@jax.org
+#SBATCH --mem-per-cpu=3500
+#SBATCH --cpus-per-task=8
+#SBATCH --qos=batch
+#SBATCH --time 3-00:00:00
+
+
+cd /projects/lau-lab/ataylor/igct/
+mkdir "runSarek.$(date +"%m.%d.%y").JobID$SLURM_JOBID"
+cd "runSarek.$(date +"%m.%d.%y").JobID$SLURM_JOBID"
+date;hostname;pwd
+
+module load singularity
+
+curl -fsSL get.nextflow.io | bash
+
+./nextflow run /projects/lau-lab/ataylor/igct/sarek/main.nf \
+--outdir ./results/ \
+-profile sumner -resume \
+-with-trace runSarek.trace."$SLURM_JOBID".txt \
+--input /projects/lau-lab/ataylor/igct/sra_reads_sarekAllSamples.tsv \
+--sra true \
+--tools FreeBayes \
+--genome GRCh38 \
+--key_file /projects/lau-lab/ataylor/igct/IGCT.Apr7key.ngc \
+--intervals /projects/lau-lab/ataylor/igct/MHC.AllGeneRegions.Unique.Sorted.3Column.bed \
+--max_cpus 16 \
+--max_memory 104.GB
